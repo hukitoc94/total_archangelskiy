@@ -35,7 +35,6 @@ class collection:
             NDVI = image.normalizedDifference(ndvi_bands).rename('NDVI').select('NDVI')
             image = image.addBands(NDVI)
             return image
-
         def day_mosaics(date , newlist):
             date_ee = ee.Date(date)
             newlist = ee.List(newlist)
@@ -49,25 +48,20 @@ class collection:
             
 
             return ee.List(ee.Algorithms.If(filtered.size(), newlist.add(image), newlist))
-
         def NDTI_calculate(image):
                 NDTI = image.normalizedDifference(ndti_bands).rename('NDTI').select("NDTI")
                 image = image.addBands(NDTI)
                 return image
         def get_time_lst(time_lst):
-            unique_dates = list()
-            unix_time = list()
+            unique_dates = []
             for i in time_lst:
-                    unix_time.append(i)
                     unique_date_str = str(i)[:10]
                     unique_date = int(unique_date_str)
                     unique_dates.append(datetime.datetime.fromtimestamp(unique_date).strftime("%Y-%m-%d"))
             dates = list(set(unique_dates))
             dates.sort()
 
-            unix_dates = list(set(unix_time))
-            unix_dates.sort
-            return(dates, unix_dates)
+            return(dates)
 
         def S2masking(image): 
                 cloudProb = image.select('MSK_CLDPRB')  # покрытие облаками
@@ -105,10 +99,6 @@ class collection:
             snow_mask = qa.bitwiseAnd(snowBitMask).eq(0)
             return image.updateMask(shadow_mask).updateMask(cloud_mask).updateMask(snow_mask)
             
-
-
-
-
         if platform == 'landsat8':
             ndvi_bands = ['B5', 'B4']
             ndti_bands = ['B6', 'B7']
@@ -141,45 +131,41 @@ class collection:
 
 
 
-        time_lst = row_image.aggregate_array("system:time_start").getInfo()
+        time_lst = row_image.aggregate_array("system:time_start").getInfo() #получили даты
+        unique_dates = get_time_lst(time_lst) # перевели даты в лист убрали повторы
 
-        unique_dates, unique_unix_date = get_time_lst(time_lst)
-        row_image = row_image.map(calulate_NDVI).map(clipper_region) #NDVI и обрезка по границам региона
-        crs = row_image.first().select('B1').projection().getInfo()['crs'] # система координат
-        transform = row_image.first().select('B1').projection().getInfo()['transform'] # параметры трансформации 
+        if len(unique_dates) == 0:
+            raise Exception("коллекция не имеет изображений") #если лист пустой и изображений нет, уронили систему 
+
+        row_image = row_image.map(clipper_region) #обрезали по маске региона
+        row_image = row_image.map(clipper_region_agricultural) # обрезали только интересующие нас объекты
+        row_image = row_image.map(calulate_NDVI) # построили NDVI 
+        row_image = row_image.map(NDTI_calculate) # построили NDTI 
+        crs = row_image.first().select('B1').projection().getInfo()['crs'] #извлекли систему координат
+        transform = row_image.first().select('B1').projection().getInfo()['transform'] #извлекли параметры трансформации 
         ####создание мозайки
         diff = self.end.difference(self.start , 'day')
-
-
-
-
-
         Range = ee.List.sequence(0, diff.subtract(1)).map(lambda day :  self.start.advance(day,'day'))
         mosaic_collection = ee.ImageCollection(ee.List(Range.iterate(day_mosaics, ee.List([])))) #получили мозайку изображений 
-        mosaic_collection.getInfo()
         #построили NDTI 
-        mosaic_collection = mosaic_collection.map(NDTI_calculate)
-        result_collection = mosaic_collection.map(clipper_region_agricultural).map(masking)     
-        if len(unique_dates) == 0:
-            raise Exception("коллекция не имеет изображений")
+        result_collection = mosaic_collection.map(masking)# сделали маску для итого изображения     
 
 
 
 
 
         self.unique_dates = unique_dates
-        self.unix_dates = unique_unix_date
         self.row = row_image
         self.mosaic = mosaic_collection
         self.crs = crs
         self.result = result_collection
 
         #кусок посвященный тому как вынуть изображения NDVI только с имеющимися пикселями
-        NDVI = result_collection \
+        NDVI = self.result \
             .select('NDVI') \
             .toBands() \
             .rename(self.unique_dates)
-        date_value_dictionary = NDVI.reduceRegion(ee.Reducer.count()).getInfo()
+        date_value_dictionary = NDVI.reduceRegion(ee.Reducer.count(),geometry = region_of_interest ).getInfo()
         
         pixels_count_list = list(date_value_dictionary.values())
         part_of_pixels = (np.mean(pixels_count_list)/3) * 2
@@ -188,21 +174,18 @@ class collection:
         for (key, val) in date_value_dictionary.items():
             if val > part_of_pixels:
                 good_date_list.append(key)
+        self.good_date_list = good_date_list
 
-        def DownloadImages(collection,date_list, platform):
-             '''идея в том что через эту фунцию мы будем скачивать данные
-            формат названия файла на выходе следующий масштаб_Платформа_дата_чтополучаем.tiff
-            договоримся так когда у нас полное изображение - каналы + индексы это будет называться scene , когда minNDTI- minNDTI за указанный период и даты будет 2 - начало и конец '''
-        
+    def DownloadImages(self):
+            '''идея в том что через эту фунцию мы будем скачивать данные
+        формат названия файла на выходе следующий масштаб_Платформа_дата_чтополучаем.tiff
+        договоримся так когда у нас полное изображение - каналы + индексы это будет называться scene , когда minNDTI- minNDTI за указанный период и даты будет 2 - начало и конец '''
+            for i in self.good_date_list:
+            
+                composit_to_download = self.result.filterMetadata('Date', 'equals', ee.Date(i)).first()
+                composit_to_download = composit_to_download.select(['B1','B2','B3','B4','B5','B6','B7','NDVI','NDTI']) # тут надо еще поправить бэнды в зависимости от платформы
+                                                                
+                directory = 'raster_data/' + 'Field_scale_' + self.platform + "_" + i + '_scene.tif'
+                geemap.ee_export_image(composit_to_download, filename=directory,region=self.region_of_interest.geometry(), scale = 10,  file_per_band=False)
 
-             for i in date_list:
-                
-                composit_to_download = collection.filterMetadata('Date', 'equals', ee.Date(i)).first()
-                composit_to_download = composit_to_download.select(['B1','B2','B3','B4','B5','B6','B7','NDVI','NDTI'])
-                                                                 
-                directory = 'raster_data/' + 'Field_scale_' + platform + "_" + i + '_scene.tif'
-                geemap.ee_export_image(composit_to_download, filename=directory, scale = 10,  file_per_band=False)
-
-
-        self.download = DownloadImages(result_collection,good_date_list, self.platform)
 
