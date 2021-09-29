@@ -176,6 +176,9 @@ class collection:
                 good_date_list.append(key)
         self.good_date_list = good_date_list
 
+        if len(good_date_list) == 0:
+            raise Exception("коллекция не имеет изображений") #если лист пустой и изображений нет, уронили систему 
+
     def DownloadImages(self):
             '''идея в том что через эту фунцию мы будем скачивать данные
         формат названия файла на выходе следующий масштаб_Платформа_дата_чтополучаем.tiff
