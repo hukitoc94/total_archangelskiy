@@ -1,6 +1,6 @@
-import ee, geemap, os, datetime
+import ee, geemap, os.path, datetime
 import numpy as np
-
+ee.Initialize()
 #общие процессы при подготовке данных - создание маски, обрезка региона, создание мозаик изображений расчет индексов 
 
 ###### цикл обработки данных для сентинел 
@@ -11,15 +11,20 @@ class collection:
         """ входные параметры - platform - платформа данных ДЗЗ - по умолчанию стоит sentinel2 /альтернативные аргументы landsat8 , landsat7 (возможно запилю сюда 5-6)
             fist_date - дата с которой начинаем отчет
             last_date - дата по которую мы отбираем данные 
-            region_geometry - границы региона по которому мы работаем 
-            agricultural_lands - земли сельхоз назначения 
+            region_geometry - ссылка на директорию с json 
+            agricultural_lands - ссылка на директорию с json  
             cloud_cover_threshold - облачность не более --- по умолчанию 20 процентов
+
+
+
+            region_boundary = geemap.geojson_to_ee('vector_data/budenovsk_district_boundaries.geojson')
+region_of_interest = geemap.geojson_to_ee('vector_data/our_fields_for_animation.geojson')
         """
         self.start = ee.Date(first_date)
         self.end = ee.Date(last_date)
         self.platform = platform
-        self.region_geometry = region_geometry
-        self.region_of_interest = region_of_interest
+        self.region_geometry = geemap.geojson_to_ee(region_geometry)
+        self.region_of_interest = geemap.geojson_to_ee(region_of_interest)
 
         global  ndvi_bands
         global  ndti_bands 
@@ -104,7 +109,7 @@ class collection:
             ndti_bands = ['B6', 'B7']
             row_image = ee.ImageCollection("LANDSAT/LC08/C01/T1_SR") \
                 .filterDate(first_date, last_date) \
-                .filterBounds(region_geometry) \
+                .filterBounds(self.region_geometry) \
                 .filterMetadata( 'CLOUD_COVER_LAND', 'less_than', cloud_cover_threshold) \
                 .sort("system:time_start") 
             masking = L8masking          
@@ -113,7 +118,7 @@ class collection:
             ndti_bands = ['B5', 'B7']
             row_image = ee.ImageCollection("LANDSAT/LE07/C01/T1_SR") \
                 .filterDate(first_date, last_date) \
-                .filterBounds(region_geometry) \
+                .filterBounds(self.region_geometry) \
                 .filterMetadata( 'CLOUD_COVER_LAND', 'less_than', cloud_cover_threshold) \
                 .sort("system:time_start")
             masking = L7masking                      
@@ -122,7 +127,7 @@ class collection:
             ndti_bands = ['B11', 'B12']
             row_image = ee.ImageCollection('COPERNICUS/S2_SR') \
                 .filterDate(first_date, last_date) \
-                .filterBounds(region_geometry.geometry()) \
+                .filterBounds(self.region_geometry) \
                 .filterMetadata("CLOUD_COVERAGE_ASSESSMENT", 'less_than', cloud_cover_threshold) \
                 .sort("system:time_start")
             masking = S2masking
@@ -165,7 +170,7 @@ class collection:
             .select('NDVI') \
             .toBands() \
             .rename(self.unique_dates)
-        date_value_dictionary = NDVI.reduceRegion(ee.Reducer.count(),geometry = region_of_interest ).getInfo()
+        date_value_dictionary = NDVI.reduceRegion(ee.Reducer.count(),geometry = self.region_of_interest ).getInfo()
         
         pixels_count_list = list(date_value_dictionary.values())
         part_of_pixels = (np.mean(pixels_count_list)/3) * 2
@@ -184,11 +189,23 @@ class collection:
         формат названия файла на выходе следующий масштаб_Платформа_дата_чтополучаем.tiff
         договоримся так когда у нас полное изображение - каналы + индексы это будет называться scene , когда minNDTI- minNDTI за указанный период и даты будет 2 - начало и конец '''
             for i in self.good_date_list:
-            
+                #чтобы не сломать голову! в любом случае порядок каналов в бэнде будет следующий - Blue, Green. Red, NIR, SWIR1 , SWIR2, NDVI, NDTI так будет проще не запутаться в дальнейшем
+                if self.platform == 'landsat7':
+                    band_list = ['B1','B2','B3','B4','B5','B7','NDVI','NDTI'] 
+                elif self.platform == 'landsat8':
+                    band_list = ['B2','B3','B4','B5','B6','B7','NDVI','NDTI']
+                else:
+                    band_list = ['B2','B3','B4','B8','B11','B12','NDVI','NDTI']
+
                 composit_to_download = self.result.filterMetadata('Date', 'equals', ee.Date(i)).first()
-                composit_to_download = composit_to_download.select(['B1','B2','B3','B4','B5','B6','B7','NDVI','NDTI']) # тут надо еще поправить бэнды в зависимости от платформы
-                                                                
-                directory = 'raster_data/' + 'Field_scale_' + self.platform + "_" + i + '_scene.tif'
-                geemap.ee_export_image(composit_to_download, filename=directory,region=self.region_of_interest.geometry(), scale = 10,  file_per_band=False)
+                composit_to_download = composit_to_download.select(band_list) # тут надо еще поправить бэнды в зависимости от платформы
+                file_name = 'Field_scale_' + self.platform + "_" + i + '_scene.tif'                  
+                directory = 'raster_data/' + file_name
+                if os.path.isfile(directory): 
+                    print(f'file {file_name} alredy exists')
+                else:
+                    with open("./raster_data/file_list.txt", "a") as file_object:
+                        file_object.write(file_name + '\n') # имеет смысл наверное создать txt с именами фаилов которые мы будем получать после скачивания, чтобы потом легче их вынуть
+                    geemap.ee_export_image(composit_to_download, filename=directory,region=self.region_of_interest.geometry(),scale = 10,  file_per_band=False)
 
 
