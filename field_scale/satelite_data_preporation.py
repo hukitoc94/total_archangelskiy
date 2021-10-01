@@ -42,9 +42,9 @@ class collection:
             date_ee = ee.Date(date)
             newlist = ee.List(newlist)
 
-            filtered = row_image_NDTI.filterDate(date_ee , date_ee.advance(1,'day'))
+            filtered = self.row_image_NDTI.filterDate(date_ee , date_ee.advance(1,'day'))
 
-            image = ee.Image(filtered.mosaic()).reproject(crs = crs , crsTransform = transform)
+            image = ee.Image(filtered.mosaic(scale = 10)).reproject(crs = self.crs , crsTransform = transform)
              #добовляем дату к каждой мозайке 
             image = image.set({'Date' : date})
 
@@ -107,7 +107,7 @@ class collection:
             ndti_bands = ['B6', 'B7']
             row_image = ee.ImageCollection("LANDSAT/LC08/C01/T1_SR") \
                 .filterDate(first_date, last_date) \
-                .filterBounds(self.region_geometry) \
+                .filterBounds(self.region_of_interest) \
                 .filterMetadata( 'CLOUD_COVER_LAND', 'less_than', cloud_cover_threshold) \
                 .sort("system:time_start") 
             masking = L8masking          
@@ -116,7 +116,7 @@ class collection:
             ndti_bands = ['B5', 'B7']
             row_image = ee.ImageCollection("LANDSAT/LE07/C01/T1_SR") \
                 .filterDate(first_date, last_date) \
-                .filterBounds(self.region_geometry) \
+                .filterBounds(self.region_of_interest) \
                 .filterMetadata( 'CLOUD_COVER_LAND', 'less_than', cloud_cover_threshold) \
                 .sort("system:time_start")
             masking = L7masking                      
@@ -125,44 +125,41 @@ class collection:
             ndti_bands = ['B11', 'B12']
             row_image = ee.ImageCollection('COPERNICUS/S2_SR') \
                 .filterDate(first_date, last_date) \
-                .filterBounds(self.region_geometry) \
+                .filterBounds(self.region_of_interest) \
                 .filterMetadata("CLOUD_COVERAGE_ASSESSMENT", 'less_than', cloud_cover_threshold) \
                 .sort("system:time_start")
             masking = S2masking
                     
         
-        self.row = row_image
+        self.row_image = row_image
 
         time_lst = row_image.aggregate_array("system:time_start").getInfo() #получили даты
-        unique_dates = get_time_lst(time_lst) # перевели даты в лист убрали повторы
+        self.unique_dates = get_time_lst(time_lst) # перевели даты в лист убрали повторы
 
-        if len(unique_dates) == 0:
+        if len(self.unique_dates) == 0:
             raise Exception("коллекция не имеет изображений") #если лист пустой и изображений нет, уронили систему 
 
-        row_image_cliped = row_image.map(clipper_region) #обрезали по маске региона
-        row_image_cliped = row_image_cliped.map(clipper_region_agricultural) # обрезали только интересующие нас объекты
-        row_image_NDVI = row_image_cliped.map(calulate_NDVI) # построили NDVI 
-        row_image_NDTI = row_image_NDVI.map(NDTI_calculate) # построили NDTI 
+        self.row_image_cliped_by_regin = row_image.map(clipper_region) #обрезали по маске региона
+        self.row_image_cliped_by_roi = self.row_image_cliped_by_regin.map(clipper_region_agricultural) # обрезали только интересующие нас объекты
+        self.row_image_NDVI = self.row_image_cliped_by_roi.map(calulate_NDVI) # построили NDVI 
+        self.row_image_NDTI = self.row_image_NDVI.map(NDTI_calculate) # построили NDTI 
 
 
-        crs = row_image_NDTI.first().select('B1').projection().getInfo()['crs'] #извлекли систему координат
-        transform = row_image_NDTI.first().select('B1').projection().getInfo()['transform'] #извлекли параметры трансформации 
+        self.crs = self.row_image_NDTI.first().select('B1').projection().getInfo()['crs'] #извлекли систему координат
+        transform = self.row_image_NDTI.first().select('B1').projection().getInfo()['transform'] #извлекли параметры трансформации 
+
+
         ####создание мозайки
         diff = self.end.difference(self.start , 'day')
         Range = ee.List.sequence(0, diff.subtract(1)).map(lambda day :  self.start.advance(day,'day'))
-        mosaic_collection = ee.ImageCollection(ee.List(Range.iterate(day_mosaics, ee.List([])))) #получили мозайку изображений 
+        self.mosaic_collection = ee.ImageCollection(ee.List(Range.iterate(day_mosaics, ee.List([])))) #получили мозайку изображений 
         #построили NDTI 
-        result_collection = mosaic_collection.map(masking)# сделали маску для итого изображения     
+        self.result = self.mosaic_collection.map(masking)# сделали маску для итого изображения     
 
 
 
 
 
-        self.unique_dates = unique_dates
-        self.row = row_image
-        self.mosaic = mosaic_collection
-        self.crs = crs
-        self.result = result_collection
 
         #кусок посвященный тому как вынуть изображения NDVI только с имеющимися пикселями
         NDVI = self.result \
