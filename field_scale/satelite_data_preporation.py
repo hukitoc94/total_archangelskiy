@@ -1,5 +1,8 @@
 import ee, geemap, os.path, datetime
+from geetools import batch
+
 import numpy as np
+import build_maps
 ee.Initialize()
 #общие процессы при подготовке данных - создание маски, обрезка региона, создание мозаик изображений расчет индексов 
 
@@ -14,11 +17,6 @@ class collection:
             region_geometry - ссылка на директорию с json 
             agricultural_lands - ссылка на директорию с json  
             cloud_cover_threshold - облачность не более --- по умолчанию 20 процентов
-
-
-
-            region_boundary = geemap.geojson_to_ee('vector_data/budenovsk_district_boundaries.geojson')
-region_of_interest = geemap.geojson_to_ee('vector_data/our_fields_for_animation.geojson')
         """
         self.start = ee.Date(first_date)
         self.end = ee.Date(last_date)
@@ -44,7 +42,7 @@ region_of_interest = geemap.geojson_to_ee('vector_data/our_fields_for_animation.
             date_ee = ee.Date(date)
             newlist = ee.List(newlist)
 
-            filtered = row_image.filterDate(date_ee , date_ee.advance(1,'day'))
+            filtered = row_image_NDTI.filterDate(date_ee , date_ee.advance(1,'day'))
 
             image = ee.Image(filtered.mosaic()).reproject(crs = crs , crsTransform = transform)
              #добовляем дату к каждой мозайке 
@@ -132,9 +130,8 @@ region_of_interest = geemap.geojson_to_ee('vector_data/our_fields_for_animation.
                 .sort("system:time_start")
             masking = S2masking
                     
-
-
-
+        
+        self.row = row_image
 
         time_lst = row_image.aggregate_array("system:time_start").getInfo() #получили даты
         unique_dates = get_time_lst(time_lst) # перевели даты в лист убрали повторы
@@ -142,12 +139,14 @@ region_of_interest = geemap.geojson_to_ee('vector_data/our_fields_for_animation.
         if len(unique_dates) == 0:
             raise Exception("коллекция не имеет изображений") #если лист пустой и изображений нет, уронили систему 
 
-        row_image = row_image.map(clipper_region) #обрезали по маске региона
-        row_image = row_image.map(clipper_region_agricultural) # обрезали только интересующие нас объекты
-        row_image = row_image.map(calulate_NDVI) # построили NDVI 
-        row_image = row_image.map(NDTI_calculate) # построили NDTI 
-        crs = row_image.first().select('B1').projection().getInfo()['crs'] #извлекли систему координат
-        transform = row_image.first().select('B1').projection().getInfo()['transform'] #извлекли параметры трансформации 
+        row_image_cliped = row_image.map(clipper_region) #обрезали по маске региона
+        row_image_cliped = row_image_cliped.map(clipper_region_agricultural) # обрезали только интересующие нас объекты
+        row_image_NDVI = row_image_cliped.map(calulate_NDVI) # построили NDVI 
+        row_image_NDTI = row_image_NDVI.map(NDTI_calculate) # построили NDTI 
+
+
+        crs = row_image_NDTI.first().select('B1').projection().getInfo()['crs'] #извлекли систему координат
+        transform = row_image_NDTI.first().select('B1').projection().getInfo()['transform'] #извлекли параметры трансформации 
         ####создание мозайки
         diff = self.end.difference(self.start , 'day')
         Range = ee.List.sequence(0, diff.subtract(1)).map(lambda day :  self.start.advance(day,'day'))
@@ -184,18 +183,21 @@ region_of_interest = geemap.geojson_to_ee('vector_data/our_fields_for_animation.
         if len(good_date_list) == 0:
             raise Exception("коллекция не имеет изображений") #если лист пустой и изображений нет, уронили систему 
 
-    def DownloadImages(self):
+    def DownloadImages(self, bands = 'all' ):
+
+
             '''идея в том что через эту фунцию мы будем скачивать данные
         формат названия файла на выходе следующий масштаб_Платформа_дата_чтополучаем.tiff
         договоримся так когда у нас полное изображение - каналы + индексы это будет называться scene , когда minNDTI- minNDTI за указанный период и даты будет 2 - начало и конец '''
             for i in self.good_date_list:
                 #чтобы не сломать голову! в любом случае порядок каналов в бэнде будет следующий - Blue, Green. Red, NIR, SWIR1 , SWIR2, NDVI, NDTI так будет проще не запутаться в дальнейшем
                 if self.platform == 'landsat7':
-                    band_list = ['B1','B2','B3','B4','B5','B7','NDVI','NDTI'] 
+                    band_list = ['B3','B2','B1','B4','B5','B7','NDVI','NDTI'] 
                 elif self.platform == 'landsat8':
-                    band_list = ['B2','B3','B4','B5','B6','B7','NDVI','NDTI']
+                    band_list = ['B4','B3','B2','B5','B6','B7','NDVI','NDTI']
                 else:
-                    band_list = ['B2','B3','B4','B8','B11','B12','NDVI','NDTI']
+                    band_list = ['B4','B3','B2','B8','B11','B12','NDVI','NDTI']
+
 
                 composit_to_download = self.result.filterMetadata('Date', 'equals', ee.Date(i)).first()
                 composit_to_download = composit_to_download.select(band_list) # тут надо еще поправить бэнды в зависимости от платформы
@@ -206,6 +208,9 @@ region_of_interest = geemap.geojson_to_ee('vector_data/our_fields_for_animation.
                 else:
                     with open("./raster_data/file_list.txt", "a") as file_object:
                         file_object.write(file_name + '\n') # имеет смысл наверное создать txt с именами фаилов которые мы будем получать после скачивания, чтобы потом легче их вынуть
-                    geemap.ee_export_image(composit_to_download, filename=directory,region=self.region_of_interest.geometry(),scale = 10,  file_per_band=False)
+                    geemap.ee_export_image(composit_to_download, filename=directory,region=self.region_of_interest.geometry(),  file_per_band=False)
+
+    def get_raster_plots(self):
+        build_maps.start()
 
 
