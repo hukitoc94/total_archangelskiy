@@ -1,5 +1,5 @@
-import ee, geemap, os.path, datetime
-from geetools import batch
+import ee, geemap, os.path, datetime 
+import pandas as pd
 
 import numpy as np
 import build_maps
@@ -18,6 +18,10 @@ class collection:
             agricultural_lands - ссылка на директорию с json  
             cloud_cover_threshold - облачность не более --- по умолчанию 20 процентов
         """
+        self.first_date = first_date
+        self.last_date = last_date
+
+
         self.start = ee.Date(first_date)
         self.end = ee.Date(last_date)
         self.platform = platform
@@ -44,7 +48,7 @@ class collection:
 
             filtered = self.row_image_NDTI.filterDate(date_ee , date_ee.advance(1,'day'))
 
-            image = ee.Image(filtered.mosaic(scale = 10)).reproject(crs = self.crs , crsTransform = transform)
+            image = ee.Image(filtered.mosaic()).reproject(crs = self.crs, scale = 10)
              #добовляем дату к каждой мозайке 
             image = image.set({'Date' : date})
 
@@ -67,18 +71,18 @@ class collection:
             return(dates)
 
         def S2masking(image): 
-                cloudProb = image.select('MSK_CLDPRB')  # покрытие облаками
-                snowProb = image.select('MSK_SNWPRB') # покрытие снегом
-                cloud = cloudProb.lt(1) # создали бинарную маску иными словами просто все что имеет значение меньше 5 одна группа выше другая
-                                    # а мы помним что пиксели принимают значения от 0 до 255
-                snow = snowProb.lt(1) # тоже самое что с облаками
-                scl = image.select('SCL') # слой с классификатором(есть в sentinel 2 уровня обработки 2А)
-                shadow = scl.neq(3);# 3 в классификации это тени от облаков
-                cirrus_medium = scl.neq(8) # тоже по классификации облака 
-                cirrus_high = scl.neq(9) # аналогично облака
-                cirrus = scl.neq(10); # 10 это перистые облака или цирусы
-                masked_img = image.updateMask(cloud).updateMask(shadow).updateMask(cirrus).updateMask(cirrus_medium).updateMask(cirrus_high)
-                return(image)
+            cloudProb = image.select('MSK_CLDPRB')  # покрытие облаками
+            snowProb = image.select('MSK_SNWPRB') # покрытие снегом
+            cloud = cloudProb.lt(1) # создали бинарную маску иными словами просто все что имеет значение меньше 5 одна группа выше другая
+                                # а мы помним что пиксели принимают значения от 0 до 255
+            snow = snowProb.lt(1) # тоже самое что с облаками
+            scl = image.select('SCL') # слой с классификатором(есть в sentinel 2 уровня обработки 2А)
+            shadow = scl.neq(3);# 3 в классификации это тени от облаков
+            cirrus_medium = scl.neq(8) # тоже по классификации облака 
+            cirrus_high = scl.neq(9) # аналогично облака
+            cirrus = scl.neq(10); # 10 это перистые облака или цирусы
+            return  image.updateMask(cloud).updateMask(shadow).updateMask(cirrus).updateMask(cirrus_medium).updateMask(cirrus_high)
+
         def L8masking(image): 
             cloudShadowBitMask = (1 << 3)
             cloudsBitMask = (1 << 5)
@@ -109,8 +113,8 @@ class collection:
                 .filterDate(first_date, last_date) \
                 .filterBounds(self.region_of_interest) \
                 .filterMetadata( 'CLOUD_COVER_LAND', 'less_than', cloud_cover_threshold) \
-                .sort("system:time_start") 
-            masking = L8masking          
+                .sort("system:time_start") \
+                .map(L8masking)
         elif platform == 'landsat7':
             ndvi_bands = ['B4', 'B3']
             ndti_bands = ['B5', 'B7']
@@ -118,8 +122,8 @@ class collection:
                 .filterDate(first_date, last_date) \
                 .filterBounds(self.region_of_interest) \
                 .filterMetadata( 'CLOUD_COVER_LAND', 'less_than', cloud_cover_threshold) \
-                .sort("system:time_start")
-            masking = L7masking                      
+                .sort("system:time_start") \
+                .map(L7masking)
         else:
             ndvi_bands = ['B8', 'B4']
             ndti_bands = ['B11', 'B12']
@@ -127,8 +131,8 @@ class collection:
                 .filterDate(first_date, last_date) \
                 .filterBounds(self.region_of_interest) \
                 .filterMetadata("CLOUD_COVERAGE_ASSESSMENT", 'less_than', cloud_cover_threshold) \
-                .sort("system:time_start")
-            masking = S2masking
+                .sort("system:time_start") \
+                .map(S2masking)
                     
         
         self.row_image = row_image
@@ -146,15 +150,16 @@ class collection:
 
 
         self.crs = self.row_image_NDTI.first().select('B1').projection().getInfo()['crs'] #извлекли систему координат
-        transform = self.row_image_NDTI.first().select('B1').projection().getInfo()['transform'] #извлекли параметры трансформации 
+        self.transform = self.row_image_NDTI.first().select('B1').projection().getInfo()['transform'] #извлекли параметры трансформации 
 
 
         ####создание мозайки
         diff = self.end.difference(self.start , 'day')
         Range = ee.List.sequence(0, diff.subtract(1)).map(lambda day :  self.start.advance(day,'day'))
-        self.mosaic_collection = ee.ImageCollection(ee.List(Range.iterate(day_mosaics, ee.List([])))) #получили мозайку изображений 
+        self.result = ee.ImageCollection(ee.List(Range.iterate(day_mosaics, ee.List([])))) #получили мозайку изображений 
         #построили NDTI 
-        self.result = self.mosaic_collection.map(masking)# сделали маску для итого изображения     
+ 
+
 
 
 
@@ -205,9 +210,33 @@ class collection:
                 else:
                     with open("./raster_data/file_list.txt", "a") as file_object:
                         file_object.write(file_name + '\n') # имеет смысл наверное создать txt с именами фаилов которые мы будем получать после скачивания, чтобы потом легче их вынуть
-                    geemap.ee_export_image(composit_to_download, filename=directory,region=self.region_of_interest.geometry(),  file_per_band=False)
+                    geemap.ee_export_image(composit_to_download, filename=directory,region=self.region_of_interest.geometry(),scale = 10,  file_per_band=False)
 
     def get_raster_plots(self):
         build_maps.start()
+    
+
+    def anual_ndvi(self, regions_to_reduce):
+        """ regions_to_reduce - регионы для которых надо извлекать данные
+        """
+        NDVI_modis_filename = 'anual_data/NDVI_modis_' + self.first_date + '_' + self.last_date + '.csv'
+        if os.path.isfile(NDVI_modis_filename): 
+                    print(f'file {NDVI_modis_filename} alredy exists')
+        else:
+            MODIS_NDVI = ee.ImageCollection('MODIS/006/MOD13Q1') \
+                .filterBounds(self.region_geometry) \
+                    .filterDate(self.first_date, self.last_date) \
+                    .select('NDVI')  #берем только NDVI
+            MODIS_NDVI = MODIS_NDVI.toBands()
+            getData =  MODIS_NDVI.reduceRegions(geemap.geojson_to_ee(regions_to_reduce), ee.Reducer.median()) #считаем медиану
+            geemap.ee_export_vector(getData , NDVI_modis_filename) #сначала скачиваем данные
+            df = pd.read_csv(NDVI_modis_filename) #потом читаем и фильтруем их
+            df = df.drop(["system:index",	"FID"], axis = 1)
+            dates = [i[:-5] for i in  df.columns[:-1]]
+            dates.append("type")
+            df.columns = dates
+            df = pd.melt(df, id_vars= ['type'],var_name= 'Dates' , value_name = 'NDVI') # в данные перекидываем
+            df.NDVI = df.NDVI * 0.0001 # модис имеет масштаб 10 000
+            df.to_csv(path_or_buf=NDVI_modis_filename)
 
 

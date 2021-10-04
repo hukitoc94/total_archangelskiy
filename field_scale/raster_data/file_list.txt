@@ -1,0 +1,6 @@
+Field_scale_sentinel2_2019-07-19_scene.tif
+Field_scale_sentinel2_2019-07-29_scene.tif
+Field_scale_sentinel2_2019-08-03_scene.tif
+Field_scale_sentinel2_2019-08-08_scene.tif
+Field_scale_sentinel2_2019-08-13_scene.tif
+Field_scale_sentinel2_2019-07-04_scene.tif
