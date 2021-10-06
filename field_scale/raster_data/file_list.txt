@@ -4,3 +4,14 @@ Field_scale_sentinel2_2019-08-03_scene.tif
 Field_scale_sentinel2_2019-08-08_scene.tif
 Field_scale_sentinel2_2019-08-13_scene.tif
 Field_scale_sentinel2_2019-07-04_scene.tif
+Field_scale_sentinel2_2019-05-15_scene.tif
+Field_scale_sentinel2_2019-05-30_scene.tif
+Field_scale_sentinel2_2019-06-09_scene.tif
+Field_scale_sentinel2_2019-06-14_scene.tif
+Field_scale_sentinel2_2019-06-14_scene.tif
+Field_scale_sentinel2_2019-06-14_scene.tif
+Field_scale_sentinel2_2019-05-15_scene.tif
+Field_scale_sentinel2_2019-05-30_scene.tif
+Field_scale_sentinel2_2019-06-09_scene.tif
+Field_scale_sentinel2_2019-05-15_scene.tif
+Field_scale_sentinel2_2019-05-30_scene.tif

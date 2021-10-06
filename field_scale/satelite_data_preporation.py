@@ -1,8 +1,16 @@
 import ee, geemap, os.path, datetime 
 import pandas as pd
+from pandas.io.parsers import read_csv
+from selenium import webdriver
+import warnings
+warnings.simplefilter('ignore')
+
+import time
+
 
 import numpy as np
 import build_maps
+import parsing_climat
 ee.Initialize()
 #общие процессы при подготовке данных - создание маски, обрезка региона, создание мозаик изображений расчет индексов 
 
@@ -81,7 +89,7 @@ class collection:
             cirrus_medium = scl.neq(8) # тоже по классификации облака 
             cirrus_high = scl.neq(9) # аналогично облака
             cirrus = scl.neq(10); # 10 это перистые облака или цирусы
-            return  image.updateMask(cloud).updateMask(shadow).updateMask(cirrus).updateMask(cirrus_medium).updateMask(cirrus_high)
+            return  image.updateMask(cirrus).updateMask(cirrus_medium).updateMask(cirrus_high)
 
         def L8masking(image): 
             cloudShadowBitMask = (1 << 3)
@@ -218,10 +226,13 @@ class collection:
 
     def anual_ndvi(self, regions_to_reduce):
         """ regions_to_reduce - регионы для которых надо извлекать данные
+        на выход скачивается динамик NDVI по интересующим нас объектам 
+        df - эти данные 
         """
-        NDVI_modis_filename = 'anual_data/NDVI_modis_' + self.first_date + '_' + self.last_date + '.csv'
+        NDVI_modis_filename = 'anual_data/NDVI/NDVI_modis_' + self.first_date + '_' + self.last_date + '.csv'
         if os.path.isfile(NDVI_modis_filename): 
-                    print(f'file {NDVI_modis_filename} alredy exists')
+            print(f'file {NDVI_modis_filename} alredy exists')
+            df = pd.read_csv(NDVI_modis_filename)
         else:
             MODIS_NDVI = ee.ImageCollection('MODIS/006/MOD13Q1') \
                 .filterBounds(self.region_geometry) \
@@ -238,5 +249,34 @@ class collection:
             df = pd.melt(df, id_vars= ['type'],var_name= 'Dates' , value_name = 'NDVI') # в данные перекидываем
             df.NDVI = df.NDVI * 0.0001 # модис имеет масштаб 10 000
             df.to_csv(path_or_buf=NDVI_modis_filename)
+
+        return(df)
+        
+    def anual_weather(self, url):
+        """ url - ссылка на архив с RP5
+        на выход скачивается динамик погоды  
+        climat_data - эти данные 
+        """
+
+
+        
+        
+        first = self.first_date.split('-')
+        first = first[2] + '.' + first[1] + '.' + first[0]
+             
+        last = self.last_date.split('-')
+        last = last[2] + '.' + last[1] + '.' + last[0]
+
+        weather_filename = 'anual_data/Weather/weather_' + self.first_date + '_' + self.last_date + '.csv'
+        if os.path.isfile(weather_filename): 
+            print(f'file {weather_filename} alredy exists')
+            climat_data = read_csv(weather_filename)
+        else:
+            climat_data = parsing_climat.get_weather(first, last, url)
+            climat_data.to_csv(path_or_buf=weather_filename)
+
+        return(climat_data)
+
+
 
 
