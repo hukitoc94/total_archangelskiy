@@ -1,7 +1,8 @@
 import ee, geemap, os.path, datetime 
 import pandas as pd
 from pandas.io.parsers import read_csv
-from selenium import webdriver
+import geopandas as gpd
+
 import warnings
 warnings.simplefilter('ignore')
 
@@ -18,20 +19,25 @@ ee.Initialize()
 
 class collection:
     """первый опыт в ООП хочу реализовать коллекцию через класс, и чтоб класс сразу был коллекций уже обрезанной под наши задачи, со всякими вег индексами и прочими сфисто-перделками"""
-    def __init__(self, platform, first_date, last_date, region_geometry, region_of_interest, cloud_cover_threshold = 20): 
+    def __init__(self,  first_date, last_date): 
         """ входные параметры - platform - платформа данных ДЗЗ - по умолчанию стоит sentinel2 /альтернативные аргументы landsat8 , landsat7 (возможно запилю сюда 5-6)
             fist_date - дата с которой начинаем отчет
             last_date - дата по которую мы отбираем данные 
-            region_geometry - ссылка на директорию с json 
-            agricultural_lands - ссылка на директорию с json  
-            cloud_cover_threshold - облачность не более --- по умолчанию 20 процентов
         """
         self.first_date = first_date
         self.last_date = last_date
 
+    def get_sattelit_collection(self ,platform, region_geometry, region_of_interest, cloud_cover_threshold = 20):
 
-        self.start = ee.Date(first_date)
-        self.end = ee.Date(last_date)
+        """"platform - платформа которую мы используем  
+        region_geometry - ссылка на директорию с json 
+            agricultural_lands - ссылка на директорию с json  
+            cloud_cover_threshold - облачность не более --- по умолчанию 20 процентов
+        """
+
+
+        self.start = ee.Date(self.first_date)
+        self.end = ee.Date(self.last_date)
         self.platform = platform
         self.region_geometry = geemap.geojson_to_ee(region_geometry)
         self.region_of_interest = geemap.geojson_to_ee(region_of_interest)
@@ -57,7 +63,7 @@ class collection:
             filtered = self.row_image_NDTI.filterDate(date_ee , date_ee.advance(1,'day'))
 
             image = ee.Image(filtered.mosaic()).reproject(crs = self.crs, scale = 10)
-             #добовляем дату к каждой мозайке 
+            #добовляем дату к каждой мозайке 
             image = image.set({'Date' : date})
 
             
@@ -118,7 +124,7 @@ class collection:
             ndvi_bands = ['B5', 'B4']
             ndti_bands = ['B6', 'B7']
             row_image = ee.ImageCollection("LANDSAT/LC08/C01/T1_SR") \
-                .filterDate(first_date, last_date) \
+                .filterDate(self.first_date, self.last_date) \
                 .filterBounds(self.region_of_interest) \
                 .filterMetadata( 'CLOUD_COVER_LAND', 'less_than', cloud_cover_threshold) \
                 .sort("system:time_start") \
@@ -127,7 +133,7 @@ class collection:
             ndvi_bands = ['B4', 'B3']
             ndti_bands = ['B5', 'B7']
             row_image = ee.ImageCollection("LANDSAT/LE07/C01/T1_SR") \
-                .filterDate(first_date, last_date) \
+                .filterDate(self.first_date, self.last_date) \
                 .filterBounds(self.region_of_interest) \
                 .filterMetadata( 'CLOUD_COVER_LAND', 'less_than', cloud_cover_threshold) \
                 .sort("system:time_start") \
@@ -136,7 +142,7 @@ class collection:
             ndvi_bands = ['B8', 'B4']
             ndti_bands = ['B11', 'B12']
             row_image = ee.ImageCollection('COPERNICUS/S2_SR') \
-                .filterDate(first_date, last_date) \
+                .filterDate(self.first_date, self.last_date) \
                 .filterBounds(self.region_of_interest) \
                 .filterMetadata("CLOUD_COVERAGE_ASSESSMENT", 'less_than', cloud_cover_threshold) \
                 .sort("system:time_start") \
@@ -165,16 +171,8 @@ class collection:
         diff = self.end.difference(self.start , 'day')
         Range = ee.List.sequence(0, diff.subtract(1)).map(lambda day :  self.start.advance(day,'day'))
         self.result = ee.ImageCollection(ee.List(Range.iterate(day_mosaics, ee.List([])))) #получили мозайку изображений 
-        #построили NDTI 
- 
-
-
-
-
-
-
-
-        #кусок посвященный тому как вынуть изображения NDVI только с имеющимися пикселями
+            #построили NDTI 
+            #кусок посвященный тому как вынуть изображения NDVI только с имеющимися пикселями
         NDVI = self.result \
             .select('NDVI') \
             .toBands() \
@@ -220,8 +218,15 @@ class collection:
                         file_object.write(file_name + '\n') # имеет смысл наверное создать txt с именами фаилов которые мы будем получать после скачивания, чтобы потом легче их вынуть
                     geemap.ee_export_image(composit_to_download, filename=directory,region=self.region_of_interest.geometry(),scale = 10,  file_per_band=False)
 
-    def get_raster_plots(self):
-        build_maps.start()
+    def get_raster_plots(self, ROIs):
+        """ROIs - регионы для того чтобы сэмплить 
+        в нашем случае пока оставляем только по полям чтобы было ТТ и ПП потом возможно надо будет расширить"""
+
+        crs = int(self.crs[5:])
+        ROIs = gpd.read_file(ROIs).to_crs(crs)
+
+
+        build_maps.start(ROIs, self.platform)
     
 
     def anual_ndvi(self, regions_to_reduce):
@@ -229,28 +234,41 @@ class collection:
         на выход скачивается динамик NDVI по интересующим нас объектам 
         df - эти данные 
         """
-        NDVI_modis_filename = 'anual_data/NDVI/NDVI_modis_' + self.first_date + '_' + self.last_date + '.csv'
-        if os.path.isfile(NDVI_modis_filename): 
-            print(f'file {NDVI_modis_filename} alredy exists')
-            df = pd.read_csv(NDVI_modis_filename)
-        else:
+        NDVI_modis_filename = 'anual_data//NDVI//NDVI_modis.csv'
+
+        def MODIS_NDVI(first_date ,last_date, region_bounds, region_to_reduce):
             MODIS_NDVI = ee.ImageCollection('MODIS/006/MOD13Q1') \
-                .filterBounds(self.region_geometry) \
-                    .filterDate(self.first_date, self.last_date) \
-                    .select('NDVI')  #берем только NDVI
+                .filterBounds(region_bounds) \
+                .filterDate(first_date, last_date) \
+                .select('NDVI')  #берем только NDVI
             MODIS_NDVI = MODIS_NDVI.toBands()
-            getData =  MODIS_NDVI.reduceRegions(geemap.geojson_to_ee(regions_to_reduce), ee.Reducer.median()) #считаем медиану
-            geemap.ee_export_vector(getData , NDVI_modis_filename) #сначала скачиваем данные
-            df = pd.read_csv(NDVI_modis_filename) #потом читаем и фильтруем их
-            df = df.drop(["system:index",	"FID"], axis = 1)
+            getData =  MODIS_NDVI.reduceRegions(geemap.geojson_to_ee(region_to_reduce), ee.Reducer.median()) #считаем медиану
+            geemap.ee_export_vector(getData , 'anual_data//NDVI//row_data.csv') #сначала скачиваем данные
+            df = pd.read_csv('anual_data//NDVI//row_data.csv') #потом читаем и фильтруем их
+            df = df.drop(["system:index"], axis = 1)
             dates = [i[:-5] for i in  df.columns[:-1]]
             dates.append("type")
             df.columns = dates
             df = pd.melt(df, id_vars= ['type'],var_name= 'Dates' , value_name = 'NDVI') # в данные перекидываем
             df.NDVI = df.NDVI * 0.0001 # модис имеет масштаб 10 000
-            df.to_csv(path_or_buf=NDVI_modis_filename)
+            return(df)
 
-        return(df)
+        if os.path.isfile(NDVI_modis_filename): 
+            print(f'file {NDVI_modis_filename} alredy exists')
+            NDVI_old = pd.read_csv(NDVI_modis_filename)
+            NDVI_new = MODIS_NDVI(self.first_date ,self.last_date, self.region_geometry, regions_to_reduce)
+            NDVI_new = NDVI_old.append(NDVI_new).drop_duplicates()
+            NDVI_new.to_csv(path_or_buf=NDVI_modis_filename, index= False)
+        
+        else:
+            NDVI_new = MODIS_NDVI(self.first_date ,self.last_date, self.region_geometry, regions_to_reduce)
+             # модис имеет масштаб 10 000
+            NDVI_new.to_csv(path_or_buf=NDVI_modis_filename, index= False)
+
+    
+        return(NDVI_new)
+
+
         
     def anual_weather(self, url):
         """ url - ссылка на архив с RP5
@@ -266,17 +284,15 @@ class collection:
              
         last = self.last_date.split('-')
         last = last[2] + '.' + last[1] + '.' + last[0]
-
-        weather_filename = 'anual_data/Weather/weather_' + self.first_date + '_' + self.last_date + '.csv'
+        weather_filename = 'anual_data/Weather/weather.csv'
         if os.path.isfile(weather_filename): 
-            print(f'file {weather_filename} alredy exists')
             climat_data = read_csv(weather_filename)
+            new_climat_data = parsing_climat.get_weather(first, last, url)
+            climat_data = climat_data.append(new_climat_data).drop_duplicates()
+            climat_data.to_csv(path_or_buf=weather_filename, index= False)
         else:
             climat_data = parsing_climat.get_weather(first, last, url)
-            climat_data.to_csv(path_or_buf=weather_filename)
+            climat_data.to_csv(path_or_buf=weather_filename, index= False)
 
         return(climat_data)
-
-
-
 

@@ -39,7 +39,7 @@ def get_weather(first, last, url ):
     weather['mean_temperature'] = T['T']
     weather['sum_percepetation'] = Percipitation['RRR']
 
-    return(Percipitation)
+    return(weather)
 
 
 
