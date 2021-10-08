@@ -26,6 +26,8 @@ class collection:
         """
         self.first_date = first_date
         self.last_date = last_date
+        self.region_geometry = geemap.geojson_to_ee(region_geometry)
+
 
     def get_sattelit_collection(self ,platform, region_geometry, region_of_interest, cloud_cover_threshold = 20):
 
@@ -39,7 +41,6 @@ class collection:
         self.start = ee.Date(self.first_date)
         self.end = ee.Date(self.last_date)
         self.platform = platform
-        self.region_geometry = geemap.geojson_to_ee(region_geometry)
         self.region_of_interest = geemap.geojson_to_ee(region_of_interest)
 
         global  ndvi_bands
@@ -120,6 +121,16 @@ class collection:
             snow_mask = qa.bitwiseAnd(snowBitMask).eq(0)
             return image.updateMask(shadow_mask).updateMask(cloud_mask).updateMask(snow_mask)
             
+        def L5masking(image):
+            cloudShadowBitMask = (1 << 3)
+            cloudsBitMask = (1 << 5)
+            snowBitMask = (1<<4)
+            qa = image.select('pixel_qa')
+            shadow_mask = qa.bitwiseAnd(cloudShadowBitMask).eq(0)
+            cloud_mask = qa.bitwiseAnd(cloudsBitMask).eq(0)
+            snow_mask = qa.bitwiseAnd(snowBitMask).eq(0)
+            return image.updateMask(shadow_mask).updateMask(cloud_mask).updateMask(snow_mask)
+
         if platform == 'landsat8':
             ndvi_bands = ['B5', 'B4']
             ndti_bands = ['B6', 'B7']
@@ -138,6 +149,18 @@ class collection:
                 .filterMetadata( 'CLOUD_COVER_LAND', 'less_than', cloud_cover_threshold) \
                 .sort("system:time_start") \
                 .map(L7masking)
+        elif platform == 'landsat5':
+            ndvi_bands = ['B4', 'B3']
+            ndti_bands = ['B5', 'B7']
+            row_image = ee.ImageCollection("LANDSAT/LT05/C01/T1_SR") \
+                .filterDate(self.first_date, self.last_date) \
+                .filterBounds(self.region_of_interest) \
+                .filterMetadata( 'CLOUD_COVER_LAND', 'less_than', cloud_cover_threshold) \
+                .sort("system:time_start") \
+                .map(L5masking)
+
+
+
         else:
             ndvi_bands = ['B8', 'B4']
             ndti_bands = ['B11', 'B12']
@@ -199,8 +222,11 @@ class collection:
         договоримся так когда у нас полное изображение - каналы + индексы это будет называться scene , когда minNDTI- minNDTI за указанный период и даты будет 2 - начало и конец '''
             for i in self.good_date_list:
                 #чтобы не сломать голову! в любом случае порядок каналов в бэнде будет следующий - Blue, Green. Red, NIR, SWIR1 , SWIR2, NDVI, NDTI так будет проще не запутаться в дальнейшем
-                if self.platform == 'landsat7':
+                if self.platform == 'landsat5':
                     band_list = ['B3','B2','B1','B4','B5','B7','NDVI','NDTI'] 
+                elif self.platform == 'landsat7':
+                    band_list = ['B3','B2','B1','B4','B5','B7','NDVI','NDTI'] 
+                
                 elif self.platform == 'landsat8':
                     band_list = ['B4','B3','B2','B5','B6','B7','NDVI','NDTI']
                 else:

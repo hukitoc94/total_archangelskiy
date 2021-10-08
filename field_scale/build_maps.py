@@ -61,7 +61,7 @@ def get_maps(file_name, ROIs, source):
     ax2.axis('off')
     ax3.axis('off')
 
-    fig.suptitle(Date + ' ' + source, fontsize = 16)
+    fig.suptitle(Date, fontsize = 16)
 
 
     output_dir = "output\RGB_NDVI_NDTI\ " +  Date + ".jpg" 

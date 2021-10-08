@@ -20,7 +20,7 @@ def get_weather(first, last, url ):
     last_date.send_keys(last)
     time.sleep(3)
     driver.find_element_by_xpath(".//*[contains(text(), 'Выбрать в файл GZ')]").click()
-    time.sleep(5)
+    time.sleep(15) #надо пофиксить на фуннкцию ожидания до того момента пока не появится линк
 
 
     link =  driver.find_element_by_link_text("Скачать").get_property('href')
