@@ -26,13 +26,13 @@ class collection:
         """
         self.first_date = first_date
         self.last_date = last_date
-        self.region_geometry = geemap.geojson_to_ee(region_geometry)
+        #self.region_geometry = geemap.geojson_to_ee(region_geometry)
 
 
     def get_sattelit_collection(self ,platform, region_geometry, region_of_interest, cloud_cover_threshold = 20):
 
         """"platform - платформа которую мы используем  
-        region_geometry - ссылка на директорию с json 
+            region_geometry - ссылка на директорию с json 
             agricultural_lands - ссылка на директорию с json  
             cloud_cover_threshold - облачность не более --- по умолчанию 20 процентов
         """
@@ -42,6 +42,7 @@ class collection:
         self.end = ee.Date(self.last_date)
         self.platform = platform
         self.region_of_interest = geemap.geojson_to_ee(region_of_interest)
+        self.region_geometry = geemap.geojson_to_ee(region_geometry)
 
         global  ndvi_bands
         global  ndti_bands 
@@ -158,9 +159,6 @@ class collection:
                 .filterMetadata( 'CLOUD_COVER_LAND', 'less_than', cloud_cover_threshold) \
                 .sort("system:time_start") \
                 .map(L5masking)
-
-
-
         else:
             ndvi_bands = ['B8', 'B4']
             ndti_bands = ['B11', 'B12']
