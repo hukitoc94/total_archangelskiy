@@ -7,6 +7,14 @@ warnings.simplefilter('ignore')
 import time
 
 def get_weather(first, last, url ):
+
+
+    first = first.split('-')
+    first = first[2] + '.' + first[1] + '.' + first[0]
+    last = last.split('-')
+    last = last[2] + '.' + last[1] + '.' + last[0]
+
+
     driver = webdriver.Chrome()
     driver.get(url=url)
     driver.find_element_by_id("tabSynopDLoad").click()
