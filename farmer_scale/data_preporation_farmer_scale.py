@@ -1,7 +1,7 @@
 import pandas as pd
 import geopandas as gpd
 import os
-from parsing_climat import get_weather
+from parsing_climat import get_weather, get_station_id, prepair_weather
 from pandas.io.parsers import read_csv
 from visualisation_scripts import weather_visualisation, PCA_k_means_visualisation
 import ee
@@ -17,7 +17,7 @@ class farmer_scale:
             обрезать формат geojson
         ROI - регионы нас интересующие - конкретные поля формат geojson
     """
-    def __init__(self, start, finish, region_geometry, ROIs):
+    def __init__(self, start, finish, ROIs, region_geometry):
         ee.Initialize()
         self.start = start 
         self.finish = finish 
@@ -55,12 +55,15 @@ class farmer_scale:
     
     
     
-    def anual_weather(self, url, download = 'yes', plot_data = "yes"):
+    def anual_weather(self,  download = 'yes', plot_data = "yes"):
         """ url - ссылка на архив с RP5
         на выход скачивается динамик погоды  
         climat_df - эти данные 
         """
-        climat_data = get_weather(self.start, self.finish , url)
+
+        station_id = get_station_id(self.ROIs)
+        climat_data = get_weather(self.start, self.finish , station_id)
+        climat_data = prepair_weather(climat_data)
         self.climat_data = climat_data
         if download.lower() == 'no':
             pass
