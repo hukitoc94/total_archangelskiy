@@ -4,6 +4,9 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 from rasterio.plot import  show, adjust_band #для визуализации при помощи матплот либа
+from matplotlib.colors import LinearSegmentedColormap
+from rasterio.mask import mask 
+from scipy.stats import kruskal
 
 
 
@@ -30,38 +33,70 @@ def get_maps(file_name, ROIs, source):
     RGB = image[0:3]
     NDVI = image[6]
     NDTI = image[7]
-
+    ROIs = ROIs.to_crs(dataset.crs)
 
     RGB_norm = adjust_band(RGB)
 
-    fig, (ax1, ax2, ax3) = plt.subplots(1,3, figsize=(12,4)) 
+    fig, axes = plt.subplots(2,3, figsize=(8,8)) 
 
     color_map = plt.cm.get_cmap('RdYlGn')
     color_map = color_map.reversed()
 
-    show(RGB_norm, transform= dataset.transform, ax = ax1)
-    ROIs.plot(column = "type",ax = ax1,cmap =color_map, facecolor='none' , legend=True, edgecolor ='green', linewidth = 3)
-    ax1.set_title("RGB", fontsize = 16)
+    show(RGB_norm, transform= dataset.transform, ax = axes[0,0])
+    ROIs.plot(column = "type",ax = axes[0,0],cmap =color_map, facecolor='none' , legend=True, edgecolor ='green', linewidth = 3)
+    axes[0,0].set_title("RGB", fontsize = 16)
 
 
-    NDVI_hiden = ax2.imshow(NDVI, cmap='RdYlGn')
-    NDVI_vis = show(NDVI,transform= dataset.transform, ax = ax2, cmap='RdYlGn', vmin= 0.0 , vmax = 0.8)
-    ax2.set_title('NDVI', fontsize = 16)
-    fig.colorbar(NDVI_hiden,fraction=0.046, pad=0.04, ax=ax2).set_ticks([0,0.4,0.8])
+    NDVI_hiden = axes[0,1].imshow(NDVI, cmap='RdYlGn')
+    NDVI_vis = show(NDVI,transform= dataset.transform, ax = axes[0,1], cmap='RdYlGn', vmin= 0.0 , vmax = 0.8)
+    axes[0,1].set_title('NDVI', fontsize = 16)
+    fig.colorbar(NDVI_hiden,fraction=0.046, pad=0.04, ax=axes[0,1]).set_ticks([0,0.4,0.8])
     NDVI_hiden.set_clim(vmin = 0 , vmax = 0.8)
 
 
-    NDTI_hiden =  ax3.imshow(NDTI, cmap = 'Oranges')
-    NDTI_vis = show(NDTI,transform= dataset.transform, ax = ax3, cmap='Oranges', vmin= 0.0 , vmax = 0.2)
-    ax3.set_title('NDTI', fontsize = 16)
-    fig.colorbar(NDTI_hiden,fraction=0.046, pad=0.04, ax=ax3).set_ticks([0,0.1,0.2])
+    NDTI_hiden =  axes[0,2].imshow(NDTI, cmap = 'Oranges')
+    NDTI_vis = show(NDTI,transform= dataset.transform, ax = axes[0,2], cmap='Oranges', vmin= 0.0 , vmax = 0.2)
+    axes[0,2].set_title('NDTI', fontsize = 16)
+    fig.colorbar(NDTI_hiden,fraction=0.046, pad=0.04, ax=axes[0,2]).set_ticks([0,0.1,0.2])
     NDTI_hiden.set_clim(vmin = 0 , vmax = 0.2)
 
-    ax1.axis('off')
-    ax2.axis('off')
-    ax3.axis('off')
+    axes[0,0].axis('off')
+    axes[0,1].axis('off')
+    axes[0,2].axis('off')
 
     fig.suptitle(Date, fontsize = 16)
+
+
+    NDVI_NDTI_df = pd.DataFrame()
+    for i in ROIs['type'].unique():
+        df, _ = mask(dataset, ROIs[ROIs['type'] == i].geometry,nodata=np.nan, invert=False)
+        _df = df[6:8].reshape(2,-1)
+        _df = _df.T[~np.isnan(_df.T).any(axis=1)]
+
+        _df = pd.DataFrame(data= _df, columns= ['NDVI', "NDTI"])
+        _df['type'] = i
+        _df['date'] = Date
+        NDVI_NDTI_df = NDVI_NDTI_df.append(_df)
+
+    cmap = LinearSegmentedColormap.from_list(name='test',  colors=['red','white','green','white','red'])
+
+    colors = ["#FF0000" ,"#096716"]
+
+    sns.scatterplot(data = NDVI_NDTI_df.sample(1000), x = 'NDTI', y = 'NDVI',hue = 'type',hue_order= ['TT','PP'],palette= sns.color_palette(colors), ax = axes[1,0])
+
+    sns.boxplot(data = NDVI_NDTI_df.sample(1000),x = 'type' ,y = 'NDTI' ,hue= 'type', hue_order= ['TT','PP'], palette= sns.color_palette(colors), ax = axes[1,1])
+    axes[1,1].set(xlabel=None, ylabel = None, title = 'NDTI')
+
+    pp = NDVI_NDTI_df.NDTI[NDVI_NDTI_df['type'] == 'PP'].values
+    tt = NDVI_NDTI_df.NDTI[NDVI_NDTI_df['type'] == 'TT'].values
+    test_result = kruskal(pp, tt)[1]
+
+    axes[1,2].set(xlabel=None, ylabel = None)  # remove the axis label
+    axes[1,2].set(xticklabels=[], yticklabels=[])  
+    axes[1,2].text(0.2,0.4, f"        NDTI\nKruskal-Wallis\n H-test = {test_result}\n    \u03B1 = 0.05", fontsize  = 16)
+
+    
+
 
 
     output_dir = "output\RGB_NDVI_NDTI\ " +  Date + ".jpg" 
