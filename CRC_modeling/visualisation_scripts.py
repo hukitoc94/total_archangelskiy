@@ -1,3 +1,4 @@
+from pandas.io.parsers import read_csv
 import rasterio
 import numpy as np
 import seaborn as sns
@@ -71,13 +72,15 @@ def get_maps(file_name, ROIs, source):
 
 
 
-def weather_visualisation(start, end):
+def weather_visualisation(start, end, weather = None):
 
     """на вход подается с какого и по какое строить граффик в формате YYYY-MM-DD
         на выход получаем переменную с граффиком 
     """
-
-    weather = pd.read_csv('anual_data/Weather/weather.csv') #считали данные
+    if weather == None:
+        weather = pd.read_csv('anual_data/Weather/weather.csv') #считали данные
+    else:
+        weather = pd.read_csv(weather)
     weather['new_date'] = pd.to_datetime(weather.date , format = '%d.%m.%Y') #считал как даты
     weather = weather.sort_values(by = 'new_date').reset_index()
     year_weather_sample = weather[ (weather['new_date'] >= start) & (weather['new_date'] < end)][['new_date', "mean_temperature", "sum_percepetation"]]
@@ -97,3 +100,4 @@ def weather_visualisation(start, end):
     plt.locator_params(axis='x', nbins=10)
    
     return(fig)
+    

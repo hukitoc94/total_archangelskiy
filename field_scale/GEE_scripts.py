@@ -203,7 +203,7 @@ class DZZ_collection:
 
 
         #self.clip_region = self.mosaic.map(clipper_region) #обрезали по маске региона
-        self.result = self.mosaic.map(clipper_ROI) # обрезал по коллекции
+        #self.result = self.mosaic.map(clipper_ROI) # обрезал по коллекции
 
         #self.minNDTI = self.result.select('NDTI').min().reproject(crs = self.crs, scale = 10)
 

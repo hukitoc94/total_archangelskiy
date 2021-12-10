@@ -26,11 +26,11 @@ class field_scale:
         self.region_geometry = region_geometry
 
         self.ROIs = ROIs
-        self.ROIs_copy = ROIs.copy() #одна версия будет исходной и она и будет передаваться для скачивания данных 
+     #  self.ROIs_copy = ROIs.copy() #одна версия будет исходной и она и будет передаваться для скачивания данных 
 
 
     def get_NDVI_by_ROIs(self, download = 'yes'):
-        NDVI_df = MODIS_NDVI(self.start, self.finish, self.region_geometry, self.ROIs_copy ) #получили данны NDVI
+        NDVI_df = MODIS_NDVI(self.start, self.finish, self.region_geometry, self.ROIs ) #получили данны NDVI
         self.NDVI_df = NDVI_df
         if download.lower() == 'no':
             pass
@@ -78,7 +78,8 @@ class field_scale:
     def get_collection(self):
         preparing = DZZ_collection(self.start ,self.finish)
         preparing.get_sattelit_collection('sentinel2', self.region_geometry, self.region_geometry)
-        self.start_download = preparing.DownloadImages()
+        self.result_collection = preparing.mosaic
+        
 
           
 
