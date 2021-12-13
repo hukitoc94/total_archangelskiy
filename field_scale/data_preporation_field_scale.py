@@ -68,17 +68,18 @@ class field_scale:
                 new_climat_data.to_csv(path_or_buf=weather_filename, index= False)
             else:
                 self.climat_data.to_csv(path_or_buf=weather_filename, index= False)
-        weather_plot = weather_visualisation(self.start,self.finish )
         if plot_data.lower() == 'no':
             pass
         else: 
+            weather_plot = weather_visualisation(self.start,self.finish )
             weather_plot.savefig(f'output/weather/weather_{self.start}_{self.finish}.jpg')
-        return(self.climat_data, weather_plot)
+        return(self.climat_data)
     
     def get_collection(self):
         preparing = DZZ_collection(self.start ,self.finish)
         preparing.get_sattelit_collection('sentinel2', self.region_geometry, self.region_geometry)
-        self.result_collection = preparing.mosaic
+        preparing.DownloadImages()
+        #self.download_minNDTI = preparing.Download_minNDTI()
         
 
           

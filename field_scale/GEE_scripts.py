@@ -36,7 +36,7 @@ class DZZ_collection:
         """
         self.first_date = first_date
         self.last_date = last_date
-    def get_sattelit_collection(self ,platform, region_geometry, region_of_interest, cloud_cover_threshold = 20):
+    def get_sattelit_collection(self ,platform , region_geometry, region_of_interest, cloud_cover_threshold = 20):
 
         """"platform - платформа которую мы используем  
             region_geometry - ссылка на директорию с json 
@@ -205,7 +205,7 @@ class DZZ_collection:
         #self.clip_region = self.mosaic.map(clipper_region) #обрезали по маске региона
         #self.result = self.mosaic.map(clipper_ROI) # обрезал по коллекции
 
-        #self.minNDTI = self.result.select('NDTI').min().reproject(crs = self.crs, scale = 10)
+        self.minNDTI = self.mosaic.select('NDTI').min().reproject(crs = self.crs, scale = 10)
 
 
 
@@ -227,23 +227,24 @@ class DZZ_collection:
         #df = df.drop(["system:index"], axis = 1)
         
         #self.minNDTI_df = df
-    def Download_minNDTI(self,farmer_lands_name , season, bands = 'all' ):
+    def Download_minNDTI(self ):
 
 
         '''идея в том что через эту фунцию мы будем скачивать данные
     формат названия файла на выходе следующий масштаб_Платформа_дата_чтополучаем.tiff
     договоримся так когда у нас полное изображение - каналы + индексы это будет называться scene , когда minNDTI- minNDTI за указанный период и даты будет 2 - начало и конец '''
-        file_name = f'{farmer_lands_name}_minNDTI_{season}.tif'
+        file_name = f'minNDTI_.tif'
         directory = 'raster_data/minNDTI/' + file_name
         geemap.ee_export_image(self.minNDTI, filename=directory, region= self.ROI.geometry() ,scale = 10,  file_per_band=False)
 
-    def DownloadImages(self, bands = 'all' ):
+    def DownloadImages(self ):
 
 
             '''идея в том что через эту фунцию мы будем скачивать данные
         формат названия файла на выходе следующий масштаб_Платформа_дата_чтополучаем.tiff
         договоримся так когда у нас полное изображение - каналы + индексы это будет называться scene , когда minNDTI- minNDTI за указанный период и даты будет 2 - начало и конец '''
             for i in self.unique_dates:
+                print(i)
                 #чтобы не сломать голову! в любом случае порядок каналов в бэнде будет следующий - Blue, Green. Red, NIR, SWIR1 , SWIR2, NDVI, NDTI так будет проще не запутаться в дальнейшем
                 if self.platform == 'landsat5':
                     band_list = ['B3','B2','B1','B4','B5','B7','NDVI','NDTI'] 
@@ -256,7 +257,7 @@ class DZZ_collection:
                     band_list = ['B4','B3','B2','B8','B11','B12','NDVI','NDTI']
 
 
-                composit_to_download = self.result.filterMetadata('Date', 'equals', ee.Date(i)).first()
+                composit_to_download = self.mosaic.filterMetadata('Date', 'equals', ee.Date(i)).first()
                 composit_to_download = composit_to_download.select(band_list) # тут надо еще поправить бэнды в зависимости от платформы
                 file_name = 'Field_scale_' + self.platform + "_" + i + '_scene.tif'                  
                 directory = 'raster_data/' + file_name
@@ -264,8 +265,9 @@ class DZZ_collection:
                     print(f'file {file_name} alredy exists')
                 else:
                     with open("./raster_data/file_list.txt", "a") as file_object:
+                        print('скачивание фаила....')
                         file_object.write(file_name + '\n') # имеет смысл наверное создать txt с именами фаилов которые мы будем получать после скачивания, чтобы потом легче их вынуть
-                    geemap.ee_export_image(composit_to_download, filename=directory,region=self.region_geometry.geometry(),scale = 10,  file_per_band=False)
+                        geemap.ee_export_image(composit_to_download, filename=directory,region=self.region_geometry.geometry(),scale = 10,  file_per_band=False)
 
 
 
