@@ -3,6 +3,7 @@ import rasterio
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import pandas as pd
 from rasterio.plot import  show, adjust_band #для визуализации при помощи матплот либа
 from matplotlib.colors import LinearSegmentedColormap
@@ -85,10 +86,11 @@ def weather_visualisation(start, end, weather = None):
     weather = weather.sort_values(by = 'new_date').reset_index()
     year_weather_sample = weather[ (weather['new_date'] >= start) & (weather['new_date'] < end)][['new_date', "mean_temperature", "sum_percepetation"]]
     two_week_resample = year_weather_sample.groupby(pd.Grouper(key='new_date', axis=0, freq='2W')).agg({ "mean_temperature" : 'mean',"sum_percepetation":'sum' }).reset_index()
-    two_week_resample['str_date'] = two_week_resample['new_date'].dt.strftime('%d-%m-%Y') #важный переделали даты в удобный формат
+    two_week_resample['str_date'] = two_week_resample['new_date'].dt.strftime('%Y-%m-%d') #важный переделали даты в удобный формат
 
 
     sns.set_style("ticks")
+
     fig, ax1 = plt.subplots(figsize=(10,6))
     ax1 = sns.barplot(data = two_week_resample , x = 'str_date', y  = 'sum_percepetation',color = "#00C9FF" )
     ax1.set( ylabel='Осадки (мм)',xlabel = "", title=f'Климатические показатели {start}-{end} (шаг 2 недели, по данным rp5)' )
