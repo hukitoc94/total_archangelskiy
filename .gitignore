@@ -1,0 +1,6 @@
+.ipynb_checkpoints
+*-checkpoint.ipynb
+*.tif
+/regional_scale/raster/batch_download/*.tif
+/regional_scale/raster/batch_download
+/regional_scale/raster/batch_down_load
