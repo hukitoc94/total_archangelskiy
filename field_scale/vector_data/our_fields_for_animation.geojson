@@ -1,8 +1,0 @@
-{
-"type": "FeatureCollection",
-"name": "our_fields_for_animation",
-"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
-"features": [
-{ "type": "Feature", "properties": { "1": null }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 44.176491465856351, 44.559188268315943 ], [ 44.193933252198889, 44.549572924563009 ], [ 44.165199027262787, 44.523074826081078 ], [ 44.147869047242956, 44.532019331897764 ], [ 44.176491465856351, 44.559188268315943 ] ] ] } }
-]
-}
