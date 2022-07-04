@@ -263,8 +263,8 @@ def agrofiz_plot(data, proprety):
 
         samp = data[["Тип обработки",proprety ]]
         stats = samp.groupby(["Тип обработки"]).agg({ np.mean,  np.std, scipy.stats.variation})
-        a = samp['Коэф. структурности'][samp["Тип обработки"] == 'ТТ'].values
-        b = samp['Коэф. структурности'][samp["Тип обработки"] != 'ТТ'].values
+        a = samp[proprety][samp["Тип обработки"] == 'ТТ'].values
+        b = samp[proprety][samp["Тип обработки"] != 'ТТ'].values
         AOV = ANOVA(a,b)
 
         return(stats,AOV,plot )
@@ -276,19 +276,41 @@ def SVD_vis(agrofiz):
         'СВД водоустойчивые 10-7, мм',
         'СВД водоустойчивые 7-5, мм' ,
         'СВД водоустойчивые 5-3, мм']]
-    SVD_by_agregates = SVD_by_agregates.melt(
-        id_vars = 'Тип обработки' ,
-        value_vars = [
+
+
+    agregate_list = [
             'СВД водоустойчивые >10, мм',
             'СВД водоустойчивые 10-7, мм',
             'СВД водоустойчивые 7-5, мм' ,
             'СВД водоустойчивые 5-3, мм']
+
+    SVD_by_agregates = SVD_by_agregates.melt(
+        id_vars = 'Тип обработки' ,
+        value_vars = agregate_list
         , var_name = 'Агрегаты, мм'
         , value_name='Размер, мм')
 
     SVD_by_agregates['Агрегаты, мм'] = SVD_by_agregates['Агрегаты, мм'].str.split(' ', expand=True)[2].str.replace(',','')
 
+    
 
+    anova = pd.DataFrame({"агрегаты" : agregate_list})
+
+    p_val = []
+    for i in agregate_list:
+        df = agrofiz[["Тип обработки", i]].copy()
+
+        a = df[i][df["Тип обработки"] == 'ТТ'].values
+        b = df[i][df["Тип обработки"] != 'ТТ'].values
+        AOV = ANOVA(a,b)[1]
+        p_val.append(AOV)
+
+    anova['P-val'] = p_val
+    
+    agregate_list.append("Тип обработки")
+    stats = agrofiz[agregate_list].groupby(["Тип обработки"]).agg({ np.mean,  np.std, scipy.stats.variation})
+    
+    
     sns.set_theme(style="white", palette=None)
     fig = plt.figure(figsize=(7,7))
     plot = sns.pointplot(data = SVD_by_agregates,
@@ -303,3 +325,89 @@ def SVD_vis(agrofiz):
                     capsize = .05,)
     plot.set_title('Сравнение по обработкам')
     plt.show()
+    return(stats,anova,plot)
+
+
+def Kvu(agrofiz):
+        Kvu_by_agregates = agrofiz[[
+            'Тип обработки',
+            'Кву >10, мм',
+            'Кву 10-7, мм',
+            'Кву 7-5, мм' ,
+            'Кву 5-3, мм']]
+        agregate_list = [
+            'Кву >10, мм',
+            'Кву 10-7, мм',
+            'Кву 7-5, мм' ,
+            'Кву 5-3, мм']
+
+        Kvu_by_agregates = Kvu_by_agregates.melt(
+            id_vars = 'Тип обработки' ,
+            value_vars = agregate_list
+            , var_name = 'Агрегаты, мм'
+            , value_name='Размер, мм')
+
+        Kvu_by_agregates['Агрегаты, мм'] = Kvu_by_agregates['Агрегаты, мм'].str.split(' ', expand=True)[1].str.replace(',','')
+
+        
+
+        anova = pd.DataFrame({"агрегаты" : agregate_list})
+
+        p_val = []
+        for i in agregate_list:
+            df = agrofiz[["Тип обработки", i]].copy()
+
+            a = df[i][df["Тип обработки"] == 'ТТ'].values
+            b = df[i][df["Тип обработки"] != 'ТТ'].values
+            AOV = ANOVA(a,b)[1]
+            p_val.append(AOV)
+
+        anova['P-val'] = p_val
+        
+        agregate_list.append("Тип обработки")
+        stats = agrofiz[agregate_list].groupby(["Тип обработки"]).agg({ np.mean,  np.std, scipy.stats.variation})
+        
+        
+        sns.set_theme(style="white", palette=None)
+        fig = plt.figure(figsize=(7,7))
+        plot = sns.pointplot(data = Kvu_by_agregates,
+                        x = "Агрегаты, мм",
+                        y = "Размер, мм",
+                        hue = "Тип обработки",
+                        palette = "prism",
+                        scale = 1.2,
+                        dodge = 0.5,
+                        ci = 95,
+                        join = False,
+                        capsize = .05,)
+        plot.set_title('Сравнение по обработкам')
+        plt.show()
+        return(stats,anova,plot)
+
+
+def ob_ves_plot(ob_ves):
+        fig= plt.figure(figsize=(7,5))
+        plot = sns.pointplot(data = ob_ves,
+                x = "GPS №",
+                y = "Объемный вес",
+                hue = "GPS №",
+                palette = "tab10",
+                scale = 1.2,
+                ci = 95,
+                dodge= 0.5,
+                join = False,
+                capsize = .05,
+        )
+        plot.set(title =  'Объемный вес')
+        plt.show()
+
+
+        aov_list = []
+        for i in ob_ves['GPS №'].unique():
+            lst = list(ob_ves["Объемный вес"][ob_ves['GPS №'] == i].values)
+            aov_list.append(lst)
+        aov = ANOVA(*aov_list)
+
+        stats = ob_ves[["Объемный вес", "GPS №"]].groupby(["GPS №"]).agg({ np.mean,  np.std, scipy.stats.variation})
+
+        return(stats,aov,plot)
