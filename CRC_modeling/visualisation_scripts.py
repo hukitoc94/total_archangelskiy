@@ -103,3 +103,58 @@ def weather_visualisation(start, end, weather = None):
    
     return(fig)
     
+def for_field_ploting(year, result_fields_df):
+    preparing_df = result_fields_df[(result_fields_df['date'] > f"{year}-11-15") & (result_fields_df['date'] < f"{(year+1)}-11-15" )]
+
+
+    fig, ax1 = plt.subplots( figsize=(10,6))
+
+    formatter = mdates.DateFormatter('%Y-%m-%d')
+    NDVI_plot = sns.lineplot(data = preparing_df , x = 'date', y = 'NDV_values',hue = 'type',ci = None,linestyle="dashed",linewidth = 3, alpha=0.6, ax = ax1)
+    ax1.tick_params(axis='x', rotation=45)
+
+
+    NDVI_plot.xaxis.set_major_formatter(formatter)
+    NDVI_plot.axhline(0.3, color = '#407A15',linewidth = 5, alpha = 0.7)
+    ax1.set(ylim = (0 , 1), ylabel='NDVI',xlabel = "")
+    ax1.tick_params(labelsize = 18)
+    ax1 = ax1.twinx()
+
+
+    crc_df = preparing_df[(preparing_df['date'] > f"{(year+1)}-06-01") & (preparing_df['date'] < f"{(year+1)}-11-15" )]
+
+    date_no_veg = crc_df.dropna(axis = 0).iloc[0,2] #первая дата без вегетации
+
+    CRC_plot = sns.lineplot(data = crc_df , x = 'date', y = 'CRC_values', hue = 'type',marker="o",linewidth = 3,  ax =  ax1)
+    ax1.set(ylim = (-70 , 150), ylabel='CRC [%]',xlabel = "")
+    ax1.set_yticklabels(labels = ['','','',0,25,50,75,100])
+    ax1.legend(title = 'Объект',  labels=['ПП1', 'ТТ', 'ПП2'] )
+    ax1.tick_params(labelsize = 18)
+
+def for_point_ploting(year, result_points_df):
+    preparing_df = result_points_df[(result_points_df['date'] > f"{year}-11-15") & (result_points_df['date'] < f"{(year + 1)}-11-15" )]
+    fig, ax1 = plt.subplots(figsize=(10,6))
+
+
+    formatter = mdates.DateFormatter('%Y-%m-%d')
+    NDVI_plot = sns.lineplot(data = preparing_df , x = 'date', y = 'NDV_values',hue = 'type',ci = None,linestyle="dashed",linewidth = 3, alpha=0.6, ax = ax1)
+    ax1.tick_params(axis='x', rotation=45)
+
+    NDVI_plot.xaxis.set_major_formatter(formatter)
+    NDVI_plot.axhline(0.3, color = '#407A15',linewidth = 5, alpha = 0.7)
+    ax1.legend(title = 'Точка GPS (рад 50м.)',  labels=['525', '526', '527',"528" , '586'] )
+    ax1.set(ylim = (0 , 1), ylabel='NDVI',xlabel = "")
+    ax1.tick_params(labelsize = 18)
+
+    ax1 = ax1.twinx()
+
+    crc_df = preparing_df[(preparing_df['date'] > f"{(year + 1)}-06-01") & (preparing_df['date'] < f"{(year + 1)}-11-15" )]
+
+    date_no_veg = crc_df.dropna(axis = 0).iloc[0,2] #первая дата без вегетации
+
+
+    CRC_plot = sns.lineplot(data = crc_df , x = 'date', y = 'CRC_values', hue = 'type',marker="o",linewidth = 3,  ax =  ax1)
+    ax1.set(ylim = (-70 , 150), ylabel='CRC [%]',xlabel = "")
+    ax1.set_yticklabels(labels = ['','','',0,25,50,75,100])
+    ax1.legend(title = 'Точка GPS (рад 50м.)',  labels=['525', '526', '527',"528" , '586'] )
+    ax1.tick_params(labelsize = 18, rotation = 0)
