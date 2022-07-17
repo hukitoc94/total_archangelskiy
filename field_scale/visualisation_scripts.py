@@ -117,14 +117,14 @@ def weather_visualisation(start, end):
     weather['new_date'] = pd.to_datetime(weather.date , format = '%d.%m.%Y') #считал как даты
     weather = weather.sort_values(by = 'new_date').reset_index()
     year_weather_sample = weather[ (weather['new_date'] >= start) & (weather['new_date'] < end)][['new_date', "mean_temperature", "sum_percepetation"]]
-    two_week_resample = year_weather_sample.groupby(pd.Grouper(key='new_date', axis=0, freq='2W')).agg({ "mean_temperature" : 'mean',"sum_percepetation":'sum' }).reset_index()
+    two_week_resample = year_weather_sample.groupby(pd.Grouper(key='new_date', axis=0, freq='1M')).agg({ "mean_temperature" : 'mean',"sum_percepetation":'sum' }).reset_index()
     two_week_resample['str_date'] = two_week_resample['new_date'].dt.strftime('%d-%m-%Y') #важный переделали даты в удобный формат
 
 
     sns.set_style("ticks")
     fig, ax1 = plt.subplots(figsize=(10,6))
     ax1 = sns.barplot(data = two_week_resample , x = 'str_date', y  = 'sum_percepetation',color = "#00C9FF" )
-    ax1.set( ylabel='Осадки (мм)',xlabel = "", title=f'Климатические показатели {start}-{end} (шаг 2 недели, по данным rp5)' )
+    ax1.set( ylabel='Осадки (мм)',xlabel = "", title=f'Климатические показатели {start}-{end} (шаг 1 месяц, по данным rp5)' )
 
     ax2 = ax1.twinx()
     ax2 = sns.lineplot(data = two_week_resample["mean_temperature"], color = 'r',linewidth = 1  )
