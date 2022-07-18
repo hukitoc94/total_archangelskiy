@@ -28,7 +28,7 @@ def aov_for_nominal(df, agrochem_property, by_points = 0):
     if by_points == 0:
         reg = ols('{} ~ Глубина  *  Типобработки'.format(agrochem_property_) ,  data=dispers).fit()
     else:
-        reg = ols('{} ~ Глубина  *  GPS'.format(agrochem_property_) ,  data=dispers).fit()
+        reg = ols('{} ~ GPS * Типобработки'.format(agrochem_property_) ,  data=dispers).fit()
     aov = sm.stats.anova_lm(reg)
     aov = aov[["PR(>F)"]]
     aov.columns = ['p-value']
@@ -64,13 +64,20 @@ def ploting( df, hue,  agrochem_property , aov ,stat_test_df, to_lable = "по �
     ax3 = plt.subplot2grid((3,2), (2, 1))
     if len(df[hue].unique()) == 2:
         pal =  "prism_r"
+        style= "Тип обработки"
+        markers=["o", "o"]
+        x = "Глубина"
     else:
         pal =  "tab10"
+        x= "Тип обработки"
+        markers= ["o", "o","o", "o","x","x", "x","o"]
     sns.pointplot(data = df,
-        x = "Глубина",
+        x = x,
         y = agrochem_property,
         hue = hue,
         palette = pal,
+
+        markers = markers,
         scale = 1.2,
         ci = 95,
         dodge= 0.5,
@@ -84,10 +91,13 @@ def ploting( df, hue,  agrochem_property , aov ,stat_test_df, to_lable = "по �
     ax2.table(aov.values,rowLabels=aov.index , colLabels = aov.columns ,loc='center')
     ax2.set_title('MANOVA \nпо {} '.format(to_lable),  y=0.75 , x = 0.5)
 
-    ax3.axis('off')
-    ax3.axis('tight')
-    ax3.table(stat_test_df.values, colLabels = stat_test_df.columns ,loc='center')
-    ax3.set_title('ANOVA по глубинам \n {} '.format(to_lable),  y=0.75 , x = 0.5)
+    if stat_test_df.empty: 
+        pass
+    else:
+        ax3.axis('off')
+        ax3.axis('tight')
+        ax3.table(stat_test_df.values, colLabels = stat_test_df.columns ,loc='center')
+        ax3.set_title('ANOVA по глубинам \n {} '.format(to_lable),  y=0.75 , x = 0.5)
     plt.show(block=True)
     return fig 
 
@@ -95,14 +105,19 @@ def data_processing_agrochem(df, type_ , agrochem_property , to_lable = "1", by_
     stats_type = df.groupby([type_,'Глубина']).agg({ np.mean,  np.std, scipy.stats.variation})
     if by_points == 0:
         features = [ 'Тип обработки', 'Глубина']
+        feature = [type_,'Глубина']
     else:
-        features = ['GPS №', 'Глубина']
+        features = ['GPS №', 'Тип обработки']
+        feature = [type_]
     features.append(agrochem_property) #добавление фичи
     df = df[features]
-    stats = df.groupby([type_,'Глубина']).agg({ np.mean,  np.std, scipy.stats.variation})
+    stats = df.groupby(feature).agg({ np.mean,  np.std, scipy.stats.variation})
 
     aov = aov_for_nominal(df, agrochem_property, by_points)
-    stat_test_df = anova(df, type_, agrochem_property)
+    if by_points == 0:
+        stat_test_df = anova(df, type_, agrochem_property)
+    else:
+        stat_test_df = pd.DataFrame()
     fig = ploting(df, type_, agrochem_property, aov,stat_test_df,to_lable  )
 
     return(stats , aov, stat_test_df,fig )
