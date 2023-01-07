@@ -78,6 +78,7 @@ def ploting( df, hue,  agrochem_property , aov ,stat_test_df, to_lable = "по �
         capsize = .05,
         ax = ax1)
     ax1.set_title('Сравнение по {}'.format(to_lable))
+    ax1.legend().set_title('Технология')
 
     ax2.axis('off')
     ax2.axis('tight')
