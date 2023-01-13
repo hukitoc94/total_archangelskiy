@@ -78,6 +78,7 @@ def ploting( df, hue,  agrochem_property , aov ,stat_test_df, to_lable = "по �
         capsize = .05,
         ax = ax1)
     ax1.set_title('Сравнение по {}'.format(to_lable))
+    ax1.legend().set_title('Технология')
 
     ax2.axis('off')
     ax2.axis('tight')
@@ -259,7 +260,7 @@ def agrofiz_plot(data, proprety):
                         join = False,
                         capsize = .05,)
         plot.set_title('Сравнение по обработкам')
-        
+        plot.legend().set_title(('Технология'))
 
         samp = data[["Тип обработки",proprety ]]
         stats = samp.groupby(["Тип обработки"]).agg({ np.mean,  np.std, scipy.stats.variation})
@@ -324,6 +325,7 @@ def SVD_vis(agrofiz):
                     join = False,
                     capsize = .05,)
     plot.set_title('Сравнение по обработкам')
+    plot.legend().set_title('Технология')
     plt.show()
     return(stats,anova,plot)
 

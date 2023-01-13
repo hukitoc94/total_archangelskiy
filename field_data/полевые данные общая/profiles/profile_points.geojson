@@ -26,6 +26,11 @@
 { "type": "Feature", "properties": { "name": "528", "real_elev": 191.0, "A": 24.0, "AB": "50.00", "type": "main", "type1": "1" }, "geometry": { "type": "Point", "coordinates": [ 433959.656935736944433, 4932698.354145042598248, 169.679474 ] } },
 { "type": "Feature", "properties": { "name": "586", "real_elev": 183.5, "A": 40.0, "AB": "70.00", "type": "main", "type1": "1" }, "geometry": { "type": "Point", "coordinates": [ 434526.277638328727335, 4932384.560669536702335, 160.974701 ] } },
 { "type": "Feature", "properties": { "name": "584", "real_elev": 189.16, "A": 10.0, "AB": "25.0", "type": "main", "type1": "0" }, "geometry": { "type": "Point", "coordinates": [ 433920.697959819168318, 4931818.639008793048561, 0.0 ] } },
-{ "type": "Feature", "properties": { "name": "527", "real_elev": 184.55, "A": 40.0, "AB": "60.00", "type": "main", "type1": "0" }, "geometry": null }
+{ "type": "Feature", "properties": { "name": "527", "real_elev": 184.55, "A": 40.0, "AB": "60.00", "type": "main", "type1": "0" }, "geometry": null },
+{ "type": "Feature", "properties": { "name": null, "real_elev": 193.0, "A": null, "AB": null, "type": null, "type1": null }, "geometry": { "type": "Point", "coordinates": [ 435351.322901764186099, 4933627.724887064658105, 0.0 ] } },
+{ "type": "Feature", "properties": { "name": null, "real_elev": 188.81, "A": null, "AB": null, "type": null, "type1": null }, "geometry": { "type": "Point", "coordinates": [ 433986.103513428301085, 4931827.87015587463975, 0.0 ] } },
+{ "type": "Feature", "properties": { "name": null, "real_elev": 188.42, "A": null, "AB": null, "type": null, "type1": null }, "geometry": { "type": "Point", "coordinates": [ 434020.208366670936812, 4931829.188302331604064, 0.0 ] } },
+{ "type": "Feature", "properties": { "name": null, "real_elev": 188.0, "A": null, "AB": null, "type": null, "type1": null }, "geometry": { "type": "Point", "coordinates": [ 434206.763046491309069, 4931869.803722416050732, 0.0 ] } },
+{ "type": "Feature", "properties": { "name": null, "real_elev": 183.0, "A": null, "AB": null, "type": null, "type1": null }, "geometry": { "type": "Point", "coordinates": [ 434612.109190125833265, 4932317.233681820333004, 0.0 ] } }
 ]
 }
