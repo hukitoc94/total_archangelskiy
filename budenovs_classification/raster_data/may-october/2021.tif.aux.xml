@@ -1,0 +1,13 @@
+<PAMDataset>
+  <PAMRasterBand band="1">
+    <Description>NDTI</Description>
+    <Metadata>
+      <MDI key="STATISTICS_APPROXIMATE">YES</MDI>
+      <MDI key="STATISTICS_MAXIMUM">0.38375493884087</MDI>
+      <MDI key="STATISTICS_MEAN">0.053729632024058</MDI>
+      <MDI key="STATISTICS_MINIMUM">-0.14351786673069</MDI>
+      <MDI key="STATISTICS_STDDEV">0.054638015166487</MDI>
+      <MDI key="STATISTICS_VALID_PERCENT">51.42</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>
