@@ -108,6 +108,40 @@ def data_processing_agrochem(df, type_ , agrochem_property , to_lable = "1", by_
 
     return(stats , aov, stat_test_df,fig )
 
+
+
+def anova_by_deeth(df,  agrochem_property):
+    """
+    Считает дисперсионный анализ по глубинам между собой
+
+
+
+    """
+
+    sample = df[["Тип обработки","Глубина",agrochem_property]]
+    sample_pp = sample[sample["Тип обработки"] == 'ПП'].iloc[:,1:3]
+    sample_tt = sample[sample["Тип обработки"] != 'ПП'].iloc[:,1:3]
+
+    # ужасный колхозище!!!
+    a = sample_pp[sample_pp["Глубина"] == '0-10'].iloc[:,1].values
+    b = sample_pp[sample_pp["Глубина"] == '10-20'].iloc[:,1].values
+    c = sample_pp[sample_pp["Глубина"] == '20-30'].iloc[:,1].values
+    d = sample_tt[sample_tt["Глубина"] == '0-10'].iloc[:,1].values
+    e = sample_tt[sample_tt["Глубина"] == '10-20'].iloc[:,1].values
+    f = sample_tt[sample_tt["Глубина"] == '20-30'].iloc[:,1].values
+
+
+    stat_dict = {
+        'глубины' : ['0-10/10-20','10-20/20-30', '0-10/20-30'],
+        "ПП":[round(ANOVA(a,b)[1],2), round(ANOVA(b,c)[1],2), round(ANOVA(a,c)[1],2)],
+        "ТТ":[round(ANOVA(d,e)[1],2), round(ANOVA(e,f)[1],2), round(ANOVA(d,f)[1],2)]}
+    
+    
+    df = pd.DataFrame(stat_dict)
+
+
+    return(df)
+
 ####################################################################################################
 ################БЛОК ПО МОРФОЛОГИИ##################################################################
 
