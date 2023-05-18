@@ -313,13 +313,13 @@ def SVD_vis(agrofiz):
     
     
     sns.set_theme(style="white", palette=None)
-    fig = plt.figure(figsize=(7,7))
+    fig = plt.figure(figsize=(3,3))
     plot = sns.pointplot(data = SVD_by_agregates,
                     x = "Агрегаты, мм",
                     y = "Размер, мм",
                     hue = "Тип обработки",
                     palette = "prism",
-                    scale = 1.2,
+                    scale = 1,
                     dodge = 0.5,
                     ci = 95,
                     join = False,
@@ -371,7 +371,7 @@ def Kvu(agrofiz):
         
         
         sns.set_theme(style="white", palette=None)
-        fig = plt.figure(figsize=(7,7))
+        fig = plt.figure(figsize=(3,3))
         plot = sns.pointplot(data = Kvu_by_agregates,
                         x = "Агрегаты, мм",
                         y = "Размер, мм",
