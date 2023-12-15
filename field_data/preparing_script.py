@@ -57,11 +57,21 @@ def anova(df, varible, agrochem_property):
     stat_test_df["p-value"] = round(stat_test_df["p-value"],3)
     return(stat_test_df)
     
-def ploting( df, hue,  agrochem_property , aov ,stat_test_df, to_lable = "по обработкам" ):
-    fig = plt.figure(figsize=(7,7))
-    ax1 = plt.subplot2grid((3,2), (0, 0), colspan=2, rowspan = 2)
-    ax2 = plt.subplot2grid((3,2), (2, 0))
-    ax3 = plt.subplot2grid((3,2), (2, 1))
+def ploting( df, hue,  agrochem_property , to_lable = "по обработкам" ):
+    
+    
+    
+
+
+    fig = plt.figure(figsize=(15,7))
+    
+    #plt.style.use('seaborn-poster')
+    sns.set_style('white')
+    sns.set(font_scale=3)
+    sns.set_style('white', {'axes.grid' : True})
+    #ax1 = plt.subplot2grid((3,2), (0, 0), colspan=2, rowspan = 2)
+    #ax2 = plt.subplot2grid((3,2), (2, 0))
+    #ax3 = plt.subplot2grid((3,2), (2, 1))
     if len(df[hue].unique()) == 2:
         pal =  "prism_r"
     else:
@@ -71,13 +81,16 @@ def ploting( df, hue,  agrochem_property , aov ,stat_test_df, to_lable = "по �
         y = agrochem_property,
         hue = hue,
         palette = pal,
-        scale = 1.2,
+        scale = 4,
         ci = 95,
         dodge= 0.5,
+        errwidth=8,
         join = False,
         capsize = .05,
-        ax = ax1)
-    ax1.set_title('Сравнение по {}'.format(to_lable))
+        )
+    plt.legend( loc='upper right',ncol=2, shadow=True )
+    '''
+    ax1.set_title('')
     ax1.legend().set_title('Технология')
 
     ax2.axis('off')
@@ -89,6 +102,7 @@ def ploting( df, hue,  agrochem_property , aov ,stat_test_df, to_lable = "по �
     ax3.axis('tight')
     ax3.table(stat_test_df.values, colLabels = stat_test_df.columns ,loc='center')
     ax3.set_title('ANOVA по глубинам \n {} '.format(to_lable),  y=0.75 , x = 0.5)
+    '''
     plt.show(block=True)
     return fig 
 
@@ -102,11 +116,11 @@ def data_processing_agrochem(df, type_ , agrochem_property , to_lable = "1", by_
     df = df[features]
     stats = df.groupby([type_,'Глубина']).agg({ np.mean,  np.std, scipy.stats.variation})
 
-    aov = aov_for_nominal(df, agrochem_property, by_points)
-    stat_test_df = anova(df, type_, agrochem_property)
-    fig = ploting(df, type_, agrochem_property, aov,stat_test_df,to_lable  )
+    #aov = aov_for_nominal(df, agrochem_property, by_points)
+    #stat_test_df = anova(df, type_, agrochem_property)
+    fig = ploting(df, type_, agrochem_property, to_lable  )
 
-    return(stats , aov, stat_test_df,fig )
+    return(stats , fig )
 
 ####################################################################################################
 ################БЛОК ПО МОРФОЛОГИИ##################################################################
